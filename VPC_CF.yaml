@@ -1,0 +1,446 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS VPC CloudFormation Templete - 2Public Subnets & 2 Private Subnets with NAT
+  Gateway, RouteTables,Security Groups 
+Parameters:
+  SSHFrom:
+    Description: Limit SSH access to bastion hosts to a CIDR IP block
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+Mappings:
+  CIDRMap:
+    VPC:
+      CIDR: 192.168.0.0/16
+    Public1:
+      CIDR: 192.168.0.0/24
+    Public2:
+      CIDR: 192.168.1.0/24
+    Private1:
+      CIDR: 192.168.2.0/24
+    Private2:
+      CIDR: 192.168.3.0/24
+Resources:
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !FindInMap 
+        - CIDRMap
+        - VPC
+        - CIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+   
+      'AWS::CloudFormation::Designer':
+        id: 7bcf0dcd-e171-4bbc-b22c-f81d2413f4cd
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap 
+        - CIDRMap
+        - Public1
+        - CIDR
+      AvailabilityZone: !Select 
+        - 0
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PublicSubnet1'
+  
+      'AWS::CloudFormation::Designer':
+        id: 622b8c57-4fda-471e-adbd-0477e5b8e52d
+  PublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap 
+        - CIDRMap
+        - Public2
+        - CIDR
+      AvailabilityZone: !Select 
+        - 1
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PublicSubnet2'
+   
+      'AWS::CloudFormation::Designer':
+        id: 0d4a10d9-d6db-4a89-a7e0-ae9600d05141
+  PrivateSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap 
+        - CIDRMap
+        - Private1
+        - CIDR
+      AvailabilityZone: !Select 
+        - 0
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PrivateSubnet1'
+   
+  PrivateSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap 
+        - CIDRMap
+        - Private2
+        - CIDR
+      AvailabilityZone: !Select 
+        - 1
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PrivateSubnet2'
+    
+      'AWS::CloudFormation::Designer':
+        id: 91ac98b8-a3f8-4a62-a822-186e969ef079
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+  
+      'AWS::CloudFormation::Designer':
+        id: 8cb45b88-550b-4a1e-b1a6-8c02ecb3ffbf
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  
+      'AWS::CloudFormation::Designer':
+        id: f2f3dc5e-584c-487f-8723-cdec8a11ef04
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public-igw'
+   
+      'AWS::CloudFormation::Designer':
+        id: fb19792a-7633-44c2-a234-aecd33571306
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  
+      'AWS::CloudFormation::Designer':
+        id: 85b548ab-adad-4d58-a4e9-fe5c5c854fbd
+  PublicSubnetRouteTableAssociation1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+   
+      'AWS::CloudFormation::Designer':
+        id: eb9d98cc-d66b-4d17-bc76-1a637ebd7872
+  PublicSubnetRouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+  
+  PublicSubnetNetworkAclAssociation1:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      NetworkAclId: !GetAtt 
+        - VPC
+        - DefaultNetworkAcl
+   
+      'AWS::CloudFormation::Designer':
+        id: 90e2457b-8641-4a07-8029-9254711aec1a
+  PublicSubnetNetworkAclAssociation2:
+    Type: 'AWS::EC2::SubnetNetworkAclAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      NetworkAclId: !GetAtt 
+        - VPC
+        - DefaultNetworkAcl
+  
+      'AWS::CloudFormation::Designer':
+        id: 1171f256-ee93-4203-9b8a-dff9f1aa0463
+  ELBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTP ingress
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: 80
+          FromPort: 80
+   
+      'AWS::CloudFormation::Designer':
+        id: 69cb8fbd-13a3-4142-8f0f-bd7c073af048
+  ELBSecurityGroupToAppEgress:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId: !Ref ELBSecurityGroup
+      IpProtocol: tcp
+      ToPort: 80
+      FromPort: 80
+      DestinationSecurityGroupId: !Ref AppSecurityGroup
+  
+      'AWS::CloudFormation::Designer':
+        id: c0b687f6-32bd-4a00-81a6-29eeeb1f15fb
+  AppSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable access from ELB to app
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref ELBSecurityGroup
+          IpProtocol: tcp
+          ToPort: 80
+          FromPort: 80
+        - SourceSecurityGroupId: !Ref BastionSecurityGroup
+          IpProtocol: tcp
+          ToPort: 22
+          FromPort: 22
+  
+      'AWS::CloudFormation::Designer':
+        id: ebc03224-9791-47b2-84ac-bbe267c29199
+  AppSecurityGroupFromELBIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      ToPort: 80
+      FromPort: 80
+      SourceSecurityGroupId: !Ref ELBSecurityGroup
+  
+      'AWS::CloudFormation::Designer':
+        id: 441bd2ce-8d4f-4bad-a3cd-c08d1a6b31b2
+  AppSecurityGroupFromBastionIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      ToPort: 22
+      FromPort: 22
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+   
+      'AWS::CloudFormation::Designer':
+        id: 9898ca13-c24d-4238-a371-f882599f9ba5
+  BastionSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable access to the bastion host
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: !Ref SSHFrom
+          IpProtocol: tcp
+          ToPort: 22
+          FromPort: 22
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: 80
+          FromPort: 80
+  
+      'AWS::CloudFormation::Designer':
+        id: 9f567693-446e-4bd4-bcf4-3cf3ff66bdcc
+  BastionSecurityGroupToAppEgress:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId: !Ref BastionSecurityGroup
+      IpProtocol: tcp
+      ToPort: 22
+      FromPort: 22
+      DestinationSecurityGroupId: !Ref AppSecurityGroup
+  
+      'AWS::CloudFormation::Designer':
+        id: 2c3f4839-01ed-43bf-99eb-e8c58b3aa0fe
+  BastionSecurityGroupToDbEgress:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId: !Ref BastionSecurityGroup
+      IpProtocol: tcp
+      ToPort: 5432
+      FromPort: 3306
+      DestinationSecurityGroupId: !Ref DbSecurityGroup
+   
+  DbSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable access to the RDS DB
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: 3306
+          FromPort: 3306
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: 5432
+          FromPort: 5432
+   
+  DbSecurityGroupFromBastionIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      ToPort: 5432
+      FromPort: 3306
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+   
+      'AWS::CloudFormation::Designer':
+        id: 033d874f-2083-4ffa-a6e9-be0e8c609629
+  DbSecurityGroupFromAppIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      ToPort: 5432
+      FromPort: 3306
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+   
+      'AWS::CloudFormation::Designer':
+        id: ba410cbd-585f-4955-9d82-2ad358421e11
+  NatGateway:
+    DependsOn: VPCGatewayAttachment
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt 
+        - NatEIP
+        - AllocationId
+      SubnetId: !Ref PublicSubnet1
+   
+      'AWS::CloudFormation::Designer':
+        id: dc1f9194-8bc0-4696-bb30-85f198ea8ce8
+  NatEIP:
+    DependsOn: VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+   
+      'AWS::CloudFormation::Designer':
+        id: 9fd0cd04-0b69-43e5-9dec-807e7c0ca550
+  NatRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-private-nat'
+  
+      'AWS::CloudFormation::Designer':
+        id: 0b9e659c-d6d6-4a52-9ff6-1f208ec20ee7
+  NatRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref NatRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+ 
+      'AWS::CloudFormation::Designer':
+        id: 55449adb-cbe6-4343-b88c-bac490207a2f
+  PrivateSubnetRouteTableAssociation1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref NatRouteTable
+   
+      'AWS::CloudFormation::Designer':
+        id: 02c76423-50e6-4167-9fa6-646525fc1aa3
+  PrivateSubnetRouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref NatRouteTable
+   
+      'AWS::CloudFormation::Designer':
+        id: 710ceb2e-dcde-49a3-8337-8b530bbaee20
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VpcID'
+  PublicSubnet1:
+    Description: Public subnet 1 ID
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnet1ID'
+  PublicSubnet2:
+    Description: Public subnet 2 ID
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicSubnet2ID'
+  PrivateSubnet1:
+    Description: Private subnet 1 ID
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateSubnet1ID'
+  PrivateSubnet2:
+    Description: Private subnet 2 ID
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateSubnet2ID'
+  ELBSecurityGroup:
+    Description: Security group ID for Internet-facing ELB
+    Value: !GetAtt 
+      - ELBSecurityGroup
+      - GroupId
+    Export:
+      Name: !Sub '${AWS::StackName}-ELBSecurityGroupID'
+  AppSecurityGroup:
+    Description: Security group ID for app behind ELB
+    Value: !GetAtt 
+      - AppSecurityGroup
+      - GroupId
+    Export:
+      Name: !Sub '${AWS::StackName}-AppSecurityGroupID'
+  BastionSecurityGroup:
+    Description: Security group ID for bastion host
+    Value: !GetAtt 
+      - BastionSecurityGroup
+      - GroupId
+    Export:
+      Name: !Sub '${AWS::StackName}-BastionGroupID'
+  DatabaseSecurityGroup:
+    Description: Security group ID for RDS database
+    Value: !GetAtt 
+      - DbSecurityGroup
+      - GroupId
+    Export:
+      Name: !Sub '${AWS::StackName}-DatabaseGroupID'
+Metadata:
+    Description: ->
+        -vpc
+         -PublicSubnet1
+        -PublicSubnet2
+        -PrivateSubnet1
+        -PrivateSubnet2
+        -InternerGateway
+        -VPCGatewayAttachment
+        -PublicRouteTable
+        -PublicRoute
+        -PublicSubnetRouteTableAssociation1
+        -PublicSubnetRouteTableAssociation2
+        -PublicSubnetNetworkAclAssociation1
+        -PublicSubnetNetworkAclAssociation2
+        -ELBSecurityGroup
+        -AppSecurityGroup
+        -NatGateway
+        -NatEIP
+        -NatRouteTable
+        -NatRoute
+        -PrivateSubnetRouteTableAssociation1
+        -PrivateSubnetRouteTableAssociation2
